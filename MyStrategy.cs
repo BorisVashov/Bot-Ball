@@ -22,36 +22,48 @@ namespace Com.CodeGame.CodeBall2018.DevKit.CSharpCgdk
 
         private RobotRole roleRobotOne = RobotRole.DEFENDER_SINGLE;
         private RobotRole roleRobotTwo = RobotRole.ATTACKER_SINGLE;
-        
+
+        private double distanceBallToMyGoal;
+        private double distanceMeToBall;
+        private double distanceMeToMyGoal;
+
+        private Goal myGoal = new Goal(0, 0, -40);
+
+
 
         public void Act(Robot me, Rules rules, Game game, Action action)
         {
             if (isStartOne || isStartTwo) Initialize(me);
 
+            CalculateDistances(me, game.ball);
+
+            //DebugShow(me);
+
             if (me.id == idRobotOne)
             {
-                ChoosePosition(roleRobotOne, me, rules, game, action);
+                PlaySelfRole(roleRobotOne, me, rules, game, action);
             }
             else if (me.id == idRobotTwo)
             {
-                ChoosePosition(roleRobotTwo, me, rules, game, action);
+                PlaySelfRole(roleRobotTwo, me, rules, game, action);
             }
         }
 
 
-        private void ChoosePosition(RobotRole roleRobot, Robot me, Rules rules, Game game, Action action)
+        private void PlaySelfRole(RobotRole roleRobot, Robot me, Rules rules, Game game, Action action)
         {
-            double distanceToBall = Vector3D.DistanceBetweenBallAndRobot(game.ball, me);
-            double distanceToMyGoal = Vector3D.DistanceBetweenRobotAndMyGoal(me, new Point(0, 0, -40));
 
             switch (roleRobot)
             {
                 case RobotRole.DEFENDER_SINGLE:
-                    if (distanceToMyGoal < 15 && distanceToBall < 3)
+                    if (IsBallNearMyGoal() || (IsBallNearMe() && IsMeNearMyGoal())) // < 15
                     {
-                        HitBall(me, game.ball, action, rules, distanceToBall);
+                        if (distanceMeToBall > 8)
+                            MoveToBall(me, game.ball, action, rules);
+                        else
+                            HitBall(me, game.ball, action, rules);
                     }
-                    else //if (distanceToBall > 15)
+                    else
                     {
                         GoDefendGoal(me, game.ball, action, rules.arena, rules);
                     }
@@ -59,14 +71,44 @@ namespace Com.CodeGame.CodeBall2018.DevKit.CSharpCgdk
                     break;
 
                 case RobotRole.ATTACKER_SINGLE:
-                    //HitBall(me, game.ball, action, distanceToBall);
+                    if (IsBallNearMe())
+                        HitBall(me, game.ball, action, rules);
+                    else
+                        MoveToBall(me, game.ball, action, rules);
+
                     break;
             }
         }
 
-        private void HitBall(Robot me, Ball ball, Action action, Rules rules, double distance)
+        private bool IsBallNearMe()
         {
-            if (GoToRightSideBall(me, ball, action, rules) == true || distance > 6)
+            if (distanceMeToBall < 5)
+                return true;
+            else
+                return false;
+        }
+
+        private bool IsBallNearMyGoal()
+        {
+            if (distanceBallToMyGoal < 16)
+                return true;
+            else
+                return false;
+        }
+
+        private bool IsMeNearMyGoal()
+        {
+            if (distanceMeToMyGoal < 20)
+                return true;
+            else
+                return false;
+        }
+
+        private void HitBall(Robot me, Ball ball, Action action, Rules rules)
+        {
+            System.Console.WriteLine("HitBall");
+
+            if (IsRightSideToHitBall(me, ball, action, rules) == true)
             {
                 if (ball.x < me.x)
                     action.target_velocity_x = rules.ROBOT_ACCELERATION * -1;
@@ -76,22 +118,31 @@ namespace Com.CodeGame.CodeBall2018.DevKit.CSharpCgdk
                 if (ball.z > me.z)
                     action.target_velocity_z = rules.ROBOT_ACCELERATION;
 
-                if (distance < 2 || ((ball.y - me.y) > 2 && distance < 4))
+                if (distanceMeToBall - rules.BALL_RADIUS < 2 || ((ball.y - me.y) > 3 && distanceMeToBall < 8))
                 {
                     action.jump_speed = rules.ROBOT_MAX_JUMP_SPEED;
                 }
             }
         }
 
-        private bool GoToRightSideBall(Robot me, Ball ball, Action action, Rules rules)
+        private void MoveToBall(Robot me, Ball ball, Action action, Rules rules)
+        {
+            System.Console.WriteLine("MoveToBall");
+
+            action.target_velocity_x = rules.ROBOT_ACCELERATION * (ball.x - me.x);
+            action.target_velocity_z = rules.ROBOT_ACCELERATION * (ball.z - me.z);
+        }
+
+        private bool IsRightSideToHitBall(Robot me, Ball ball, Action action, Rules rules)
         {
             bool isRightSide = false;
+
             if (me.z < (ball.z - rules.BALL_RADIUS / 2))
                 isRightSide = true;
 
             if (isRightSide == false)
             {
-                if (ball.y - 2 > me.y)
+                if (ball.y - rules.BALL_RADIUS - 2 > me.y)
                 {
                     action.target_velocity_z = -rules.ROBOT_ACCELERATION;
                 }
@@ -111,33 +162,21 @@ namespace Com.CodeGame.CodeBall2018.DevKit.CSharpCgdk
 
         private void GoDefendGoal(Robot me, Ball ball, Action action, Arena arena, Rules rules)
         {
-            if (me.z > -(arena.depth / 2) + 10)
-            {
-                action.target_velocity_z = -rules.ROBOT_ACCELERATION;
-            }
-            else if (me.z < -(arena.depth / 2) + 5)
-            {
-                action.target_velocity_z = rules.ROBOT_ACCELERATION;
-            }
+            System.Console.WriteLine("GoDefendGoal");
+
+            action.target_velocity_z = rules.ROBOT_ACCELERATION * ((myGoal.z + 5) - me.z);
+
+            if (ball.x < 5 || ball.x > -5)
+                action.target_velocity_x = rules.ROBOT_ACCELERATION * (ball.x - me.x);
             else
-            {
-                action.target_velocity_z = 0;
-            }
+                action.target_velocity_x = rules.ROBOT_ACCELERATION * (myGoal.x - me.x);
+        }
 
-
-            if (me.x - 1 > ball.x && me.x > -13)
-            {
-                action.target_velocity_x = -rules.ROBOT_ACCELERATION;
-            }
-            else if (me.x + 1 < ball.x && me.x < 13)
-            {
-                action.target_velocity_x = rules.ROBOT_ACCELERATION;
-            }
-            else
-            {
-                action.target_velocity_x = 0;
-            }
-
+        private void CalculateDistances(Robot me, Ball ball)
+        {
+            distanceMeToBall = Vector3D.DistanceBetweenPoints((Point)ball, (Point)me);
+            distanceMeToMyGoal = Vector3D.DistanceBetweenPoints((Point)me, (Point)myGoal);
+            distanceBallToMyGoal = Vector3D.DistanceBetweenPoints((Point)ball, (Point)myGoal);
         }
 
         private void Initialize(Robot me)
@@ -167,5 +206,19 @@ namespace Com.CodeGame.CodeBall2018.DevKit.CSharpCgdk
             System.Console.WriteLine("===========================");
         }
 
+
+        private int countTiks = 59;
+        private void DebugShow(Robot robot)
+        {
+            countTiks++;
+
+            if (countTiks % 60 == 0 && robot.id == idRobotOne)
+            {
+                System.Console.WriteLine("Robot #{0} --> X: [{1}] Y: [{2}] Z:[{3}]", robot.id, robot.x, robot.y, robot.z);
+
+                System.Console.WriteLine("distanceMeToBall = {0}\ndistanceMeToMyGoal = {1}", distanceMeToBall, distanceMeToMyGoal);
+                countTiks = 1;
+            }
+        }
     }
 }

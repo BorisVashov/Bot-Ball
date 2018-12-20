@@ -10,15 +10,11 @@ namespace Com.CodeGame.CodeBall2018.DevKit.CSharpCgdk
 {
     static class Vector3D
     {
-        public static double DistanceBetweenBallAndRobot(Ball ball, Robot robot)
+        public static double DistanceBetweenPoints(Point p1, Point  p2)
         {
-            return Math.Sqrt(Math.Pow(ball.x - robot.x, 2) + Math.Pow(ball.y - robot.y, 2) + Math.Pow(ball.z - robot.z, 2));
+            return Math.Sqrt(Math.Pow(p1.x - p2.x, 2) + Math.Pow(p1.y - p2.y, 2) + Math.Pow(p1.z - p2.z, 2));
         }
 
-        public static double DistanceBetweenRobotAndMyGoal(Robot robot, Point goalCenter)
-        {
-            return Math.Sqrt(Math.Pow(robot.x - goalCenter.x, 2) + Math.Pow(robot.y - goalCenter.y, 2) + Math.Pow(robot.z - goalCenter.z, 2));
-        }
     }
 
     struct Point
@@ -32,6 +28,21 @@ namespace Com.CodeGame.CodeBall2018.DevKit.CSharpCgdk
             x = _x;
             y = _y;
             z = _z;
+        }
+
+        public static explicit operator Point(Ball entity)
+        {
+            return new Point(entity.x, entity.y, entity.z);
+        }
+
+        public static explicit operator Point(Robot entity)
+        {
+            return new Point(entity.x, entity.y, entity.z);
+        }
+
+        public static explicit operator Point(Goal entity)
+        {
+            return new Point(entity.x, entity.y, entity.z);
         }
     }
 }
